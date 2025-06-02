@@ -20,10 +20,24 @@
         </dependency>
 
         <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- 测试开始 -->
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 测试结束 -->
+
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -54,7 +68,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.justn0w.MyCustomerServiceApplication</mainClass>
+                    <mainClass>com.justn0w.Application</mainClass>
                     <skip>true</skip>
                 </configuration>
                 <executions>
