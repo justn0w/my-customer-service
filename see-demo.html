@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI对话助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#0FC6C2',
+                        neutral: {
+                            100: '#F5F7FA',
+                            200: '#E5E6EB',
+                            300: '#C9CDD4',
+                            400: '#86909C',
+                            500: '#4E5969',
+                            600: '#272E3B',
+                            700: '#1D2129',
+                        }
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .text-shadow {
+                text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            .bg-gradient-chat {
+                background: linear-gradient(180deg, rgba(245,247,250,0) 0%, rgba(245,247,250,0.5) 100%);
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-neutral-100 min-h-screen flex flex-col">
+<div class="container mx-auto px-4 py-8 max-w-4xl flex-grow flex flex-col">
+    <!-- 头部 -->
+    <header class="mb-6 text-center">
+        <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-neutral-700 text-shadow">
+            <i class="fa fa-comment-o text-primary mr-2"></i>AI对话助手
+        </h1>
+        <p class="text-neutral-400 mt-2">简洁高效的AI交互体验</p>
+    </header>
+
+    <!-- 聊天区域 -->
+    <div id="chatContainer" class="flex-grow bg-white rounded-xl shadow-md overflow-hidden mb-6 flex flex-col">
+        <div id="messages" class="flex-grow p-4 overflow-y-auto scrollbar-hide space-y-4">
+            <!-- 欢迎消息 -->
+            <div class="message bot-message animate-fade-in">
+                <div class="flex items-start">
+                    <div class="bg-primary/10 text-primary p-2 rounded-full mr-3">
+                        <i class="fa fa-robot"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="bg-neutral-100 rounded-lg p-4 shadow-sm">
+                            <p class="text-neutral-700">你好！我是AI对话助手，有什么可以帮助你的吗？</p>
+                        </div>
+                        <div class="text-xs text-neutral-400 mt-1 ml-1">刚刚</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="p-4 border-t border-neutral-200 bg-gradient-chat">
+            <form id="messageForm" class="flex items-end gap-3">
+                    <textarea
+                            id="userInput"
+                            rows="1"
+                            placeholder="输入你的问题..."
+                            class="flex-grow border border-neutral-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-all duration-300"
+                            required
+                    ></textarea>
+                <button
+                        type="submit"
+                        id="sendButton"
+                        class="bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-lg shadow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                    <i class="fa fa-paper-plane mr-2"></i>
+                    <span>发送</span>
+                </button>
+            </form>
+            <div id="typingIndicator" class="hidden mt-3 ml-2">
+                <div class="flex space-x-1">
+                    <div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部 -->
+    <footer class="text-center text-neutral-400 text-sm py-4">
+        <p>© 2025 AI对话助手 | 使用现代Web技术构建</p>
+    </footer>
+</div>
+
+<script>
+    // DOM元素
+    const messageForm = document.getElementById('messageForm');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+    const messages = document.getElementById('messages');
+    const typingIndicator = document.getElementById('typingIndicator');
+
+    // API配置
+    const apiUrl = 'http://localhost:8080/ai/generateStream'; // 替换为实际的API端点
+
+    // 自动调整文本框高度
+    userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight > 100 ? 100 : this.scrollHeight) + 'px';
+    });
+
+    // 提交表单
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // 添加用户消息
+        addMessage('user', message);
+
+        // 清空输入框并重置高度
+        userInput.value = '';
+        userInput.style.height = 'auto';
+
+        // 禁用发送按钮
+        sendButton.disabled = true;
+
+        // 显示打字指示器
+        typingIndicator.classList.remove('hidden');
+
+        // 滚动到底部
+        scrollToBottom();
+
+        // 发送消息到API
+        streamResponse(message);
+    });
+
+    // 添加消息到聊天界面
+    function addMessage(sender, content, isStreaming = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message ${isStreaming ? 'streaming' : ''} animate-fade-in`;
+
+        let iconClass, bgColorClass;
+        if (sender === 'user') {
+            iconClass = 'fa-user';
+            bgColorClass = 'bg-primary';
+        } else {
+            iconClass = 'fa-robot';
+            bgColorClass = 'bg-primary/10 text-primary';
+        }
+
+        messageDiv.innerHTML = `
+                <div class="flex items-start">
+                    <div class="${bgColorClass} p-2 rounded-full mr-3">
+                        <i class="fa ${iconClass}"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="${sender === 'user' ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-700'} rounded-lg p-4 shadow-sm">
+                            <p class="message-content">${formatMessage(content)}</p>
+                        </div>
+                        <div class="text-xs text-neutral-400 mt-1 ml-1">刚刚</div>
+                    </div>
+                </div>
+            `;
+
+        messages.appendChild(messageDiv);
+
+        // 滚动到底部
+        scrollToBottom();
+
+        return messageDiv;
+    }
+
+    // 格式化消息内容
+    function formatMessage(content) {
+        // 转义HTML特殊字符
+        const escapedContent = content
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        // 将换行符转换为<br>
+        return escapedContent.replace(/\n/g, '<br>');
+    }
+
+    // 滚动到聊天底部
+    function scrollToBottom() {
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    // 流式响应处理
+    function streamResponse(userMessage) {
+        // 创建EventSource连接
+        const eventSource = new EventSource(`${apiUrl}?message=${encodeURIComponent(userMessage)}`);
+
+        // 用于存储当前流式消息的div和内容
+        let currentStreamMessageDiv = null;
+        let accumulatedContent = '';
+
+        // 处理消息事件
+        eventSource.onmessage = function(event) {
+            try {
+                // 解析JSON数据
+                const data = JSON.parse(event.data);
+
+                // 获取内容和结束标识
+                const content = data.result?.output?.text || '';
+                const finishReason = data.result?.metadata?.finishReason;
+
+                // 如果内容不为空，处理它
+                if (content) {
+                    // 如果是第一条消息，创建新的消息元素
+                    if (!currentStreamMessageDiv) {
+                        currentStreamMessageDiv = addMessage('bot', '', true);
+                        accumulatedContent = '';
+                    }
+
+                    // 累加内容
+                    accumulatedContent += content;
+
+                    // 更新消息内容
+                    const messageContent = currentStreamMessageDiv.querySelector('.message-content');
+                    messageContent.innerHTML = formatMessage(accumulatedContent);
+
+                    // 滚动到底部
+                    scrollToBottom();
+                }
+
+                // 检查是否结束
+                if (finishReason === 'STOP') {
+                    eventSource.close();
+
+                    // 移除流式标记
+                    if (currentStreamMessageDiv) {
+                        currentStreamMessageDiv.classList.remove('streaming');
+                    }
+
+                    // 隐藏打字指示器
+                    typingIndicator.classList.add('hidden');
+
+                    // 启用发送按钮
+                    sendButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('处理流式响应时出错:', error);
+                eventSource.close();
+
+                // 隐藏打字指示器
+                typingIndicator.classList.add('hidden');
+
+                // 启用发送按钮
+                sendButton.disabled = false;
+
+                // 显示错误消息
+                addMessage('bot', '抱歉，处理你的请求时出错了。请稍后再试。');
+            }
+        };
+
+        // 处理错误
+        eventSource.onerror = function(error) {
+            console.error('EventSource错误:', error);
+            eventSource.close();
+
+            // 隐藏打字指示器
+            typingIndicator.classList.add('hidden');
+
+            // 启用发送按钮
+            sendButton.disabled = false;
+
+            // 显示错误消息
+            if (currentStreamMessageDiv && accumulatedContent) {
+                // 如果已有部分内容，就保留它
+                currentStreamMessageDiv.classList.remove('streaming');
+            } else {
+                // 否则显示错误消息
+                addMessage('bot', '抱歉，无法连接到服务器。请检查网络连接或稍后再试。');
+            }
+        };
+    }
+
+    // 添加淡入动画
+    document.head.insertAdjacentHTML('beforeend', `
+            <style>
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.3s ease-out forwards;
+                }
+            </style>
+        `);
+</script>
+</body>
+</html>
